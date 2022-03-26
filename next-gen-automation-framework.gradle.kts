@@ -23,4 +23,18 @@ plugins {
 
 dependencies {
     api(kotlin("stdlib"))
+
+    //Runtime
+    api(kotlin("stdlib"))
+    api("org.slf4j:slf4j-nop:1.7.36")
+
+    //Classpath
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+    implementation("eu.jrie.jetbrains:kotlin-shell-core:0.2.1")
+
+    testImplementation(kotlin("test"))
 }
+
+//tasks.test {
+//    useJUnitPlatform()
+//}
