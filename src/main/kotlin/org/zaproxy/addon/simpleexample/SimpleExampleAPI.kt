@@ -42,7 +42,7 @@ class SimpleExampleAPI : ApiImplementor() {
     }
 
     companion object {
-        private const val PREFIX = "simpleExample"
+        private const val PREFIX = "naf"
         private const val ACTION_HELLO_WORLD = "helloWorld"
         private val LOGGER = LogManager.getLogger(SimpleExampleAPI::class.java)
     }

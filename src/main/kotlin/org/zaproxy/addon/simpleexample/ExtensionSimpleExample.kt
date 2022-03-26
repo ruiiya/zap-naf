@@ -165,11 +165,11 @@ class ExtensionSimpleExample : ExtensionAdaptor(NAME) {
 
     companion object {
         // The name is public so that other extensions can access it
-        const val NAME = "NGAF"
+        const val NAME = "naf"
 
         // The i18n prefix, by default the package name - defined in one place to make it easier
         // to copy and change this example
-        const val PREFIX = "NGAF"
+        const val PREFIX = "naf"
 
         /**
          * Relative path (from add-on package) to load add-on resources.
