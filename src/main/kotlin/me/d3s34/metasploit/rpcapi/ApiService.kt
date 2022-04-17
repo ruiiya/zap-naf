@@ -1,23 +1,21 @@
 package me.d3s34.metasploit.rpcapi
 
 import io.ktor.client.*
-import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import me.d3s34.metasploit.rpcapi.request.MsfRpcRequest
-import me.d3s34.metasploit.rpcapi.request.auth.TokenAddRequest
 import me.d3s34.metasploit.rpcapi.request.auth.LoginRequest
 import me.d3s34.metasploit.rpcapi.request.auth.LogoutRequest
+import me.d3s34.metasploit.rpcapi.request.auth.TokenAddRequest
 import me.d3s34.metasploit.rpcapi.request.auth.TokenRemoveRequest
 import me.d3s34.metasploit.rpcapi.request.console.*
 import me.d3s34.metasploit.rpcapi.request.core.*
 import me.d3s34.metasploit.rpcapi.request.job.JobInfoRequest
 import me.d3s34.metasploit.rpcapi.request.job.JobListRequest
 import me.d3s34.metasploit.rpcapi.request.job.JobStopRequest
-import me.d3s34.metasploit.rpcapi.request.module.ModuleInfoRequest
 import me.d3s34.metasploit.rpcapi.request.module.ModuleListRequest
 import me.d3s34.metasploit.rpcapi.response.InfoResponse
 import me.d3s34.metasploit.rpcapi.response.MsfRpcResponse
@@ -107,7 +105,7 @@ class ApiService(
 
     suspend fun getModulesList(moduleListRequest: ModuleListRequest): ModuleListResponse = sendRpc(moduleListRequest)
 
-    
+
 
     companion object {
         val client = HttpClient(CIO) {
@@ -119,10 +117,6 @@ class ApiService(
 
             install(ContentNegotiation) {
                 messagePack()
-            }
-
-            engine {
-                proxy = ProxyBuilder.http("http://localhost:8080/")
             }
         }
     }
