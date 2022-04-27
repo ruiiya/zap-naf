@@ -5,7 +5,7 @@ import org.zaproxy.addon.naf.NafState
 
 class DashboardComponent(
     componentContext: ComponentContext,
-    val nafState: NafState
-): ComponentContext by componentContext {
+    nafState: NafState
+): ComponentContext by componentContext, NafState by nafState {
 
 }

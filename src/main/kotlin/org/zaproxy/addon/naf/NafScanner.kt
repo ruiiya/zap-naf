@@ -1,29 +1,79 @@
 package org.zaproxy.addon.naf
 
-import androidx.compose.runtime.MutableState
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import org.parosproxy.paros.model.SiteNode
-import org.zaproxy.addon.naf.pipeline.NafCrawlPipeline
-import org.zaproxy.addon.naf.pipeline.NafPhase
-import org.zaproxy.addon.naf.pipeline.NafPipeline
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.zaproxy.addon.naf.model.NafPlugin
+import org.zaproxy.addon.naf.model.ScanTemplate
+import org.zaproxy.addon.naf.model.toAlertThreshold
+import org.zaproxy.addon.naf.model.toAttackStrength
+import org.zaproxy.addon.naf.pipeline.*
+import org.zaproxy.zap.extension.ascan.ScanPolicy
+import java.net.URL
 import kotlin.coroutines.CoroutineContext
-import org.zaproxy.zap.model.Target
 
 class NafScanner(
-    val siteNode: SiteNode,
-    val pipelines: List<NafPipeline<Any, Any>>,
+    val nafService: NafService,
+    val defaultPolicy: ScanPolicy,
     override val coroutineContext: CoroutineContext = Dispatchers.Default
-): CoroutineScope {
+): CoroutineScope, NafService by nafService {
+    private suspend fun detectTarget(url: String): org.zaproxy.zap.model.Target {
+        val detectTargetPipeline = DetectTargetPipeline(coroutineContext)
+        return detectTargetPipeline.start(
+            URL(url)
+        )
+    }
 
-    suspend fun startScan() {
-        val context = NafContext()
+    suspend fun parseScanTemplate(scanTemplate: ScanTemplate): NafScan {
 
-        val target = Target(siteNode)
-        target.isRecurse = true
+        val target = runBlocking { detectTarget(scanTemplate.url) }
+        val listPipeline: MutableList<NafPipeline<*, *>> = mutableListOf()
 
-        val pipelineMap = pipelines
-            .groupBy { it.phase }
+        with(scanTemplate) {
+
+            listPipeline.add(InitContextPipeline(scanTemplate, coroutineContext))
+
+            if (crawlOptions.crawl) {
+                listPipeline.add(SpiderCrawlPipeline(coroutineContext))
+            }
+
+            if (crawlOptions.ajaxCrawl) {
+                listPipeline.add(AjaxSpiderCrawlPipeline(coroutineContext))
+            }
+
+            if (scanOptions.activeScan) {
+                val nafPluginMap = scanOptions.plugins.associateBy { it.id }
+                val policy = defaultPolicy
+                val nafPolicySupport = NafPolicySupport(policy, policy.defaultThreshold)
+
+                policy.pluginFactory!!
+                    .allPlugin
+                    .forEach { plugin ->
+                        nafPluginMap[plugin.id]?.let { nafPlugin ->
+                            plugin.alertThreshold = nafPlugin.threshold.toAlertThreshold()
+                            plugin.attackStrength = nafPlugin.strength.toAttackStrength()
+
+                            if (nafPlugin.threshold == NafPlugin.Threshold.OFF) {
+                                nafPolicySupport.disablePlugin(plugin)
+                            } else {
+                                nafPolicySupport.enablePlugin(plugin)
+                            }
+                        }
+                    }
+
+                listPipeline.add(ActiveScanPipeline(policy, coroutineContext))
+            }
+
+            if (systemOptions.useNuclei) {
+                nafService.nucleiEngine?.let {
+                    listPipeline.add(NucleiScanPipeline(it, systemOptions.templates,coroutineContext))
+                }
+            }
+        }
+
+        return NafScan(
+            target = target,
+            listPipeline = listPipeline
+        )
     }
 }

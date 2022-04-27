@@ -1,13 +1,13 @@
 package org.zaproxy.addon.naf
 
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.awt.ComposePanel
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import me.d3s34.lib.dsl.abstractPanel
 import org.apache.logging.log4j.LogManager
 import org.parosproxy.paros.Constant
@@ -28,6 +28,7 @@ import org.zaproxy.zap.extension.alert.AlertEventPublisher
 import org.zaproxy.zap.extension.alert.ExtensionAlert
 import org.zaproxy.zap.extension.ascan.ActiveScanEventPublisher
 import org.zaproxy.zap.extension.ascan.ExtensionActiveScan
+import org.zaproxy.zap.extension.ascan.ScanPolicy
 import org.zaproxy.zap.extension.spider.ExtensionSpider
 import org.zaproxy.zap.extension.spider.SpiderEventPublisher
 import java.awt.CardLayout
@@ -37,8 +38,12 @@ import kotlin.coroutines.CoroutineContext
 
 class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
 
+    private val exceptionHandler = CoroutineExceptionHandler { context, cause ->
+        println("Has exception $cause on $context ")
+    }
+
     override val coroutineContext: CoroutineContext
-        get() = Job() + Dispatchers.Default
+        get() = SupervisorJob() + Dispatchers.Default + exceptionHandler
 
     init {
         i18nPrefix = PREFIX
@@ -56,21 +61,23 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
 
     lateinit var extSpider: ExtensionSpider
 
+    lateinit var defaultPolicy: ScanPolicy
+
     override val getHistoryReference: (Int) -> HistoryReference = {
         extHistory.getHistoryReference(it)
     }
 
-    override val historyId: MutableSet<Int> = mutableSetOf()
+    override val alerts: MutableStateFlow<List<NafAlert>> = MutableStateFlow(emptyList())
 
-    override val historyRefSate: SnapshotStateList<HistoryReference> = mutableStateListOf()
+    override val historyRefSate: MutableStateFlow<List<HistoryReference>> = MutableStateFlow(emptyList())
 
-    override val siteNodes: SnapshotStateList<SiteNode> = mutableStateListOf()
-
-    override val alerts: SnapshotStateList<NafAlert> = mutableStateListOf()
+    override val siteNodes: MutableStateFlow<List<SiteNode>> = MutableStateFlow(emptyList())
 
     private val eventsBus = ZAP.getEventBus()!!
 
     private val eventConsumerImpl = EventConsumerImpl(this)
+
+    private val nafService = NafServiceImpl(coroutineContext)
 
     override fun getDescription(): String = Constant.messages.getString("$PREFIX.desc")
 
@@ -86,8 +93,20 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         extActiveScan = extensionLoader.getExtension(ExtensionActiveScan::class.java)
         extAlert = extensionLoader.getExtension(ExtensionAlert::class.java)
         extSpider = extensionLoader.getExtension(ExtensionSpider::class.java)
-    }
 
+        try {
+            val policyManager = extActiveScan.policyManager
+
+            defaultPolicy = policyManager
+                .templatePolicy
+
+            defaultPolicy.name = "NAF"
+
+            policyManager.savePolicy(defaultPolicy)
+        } catch (t: Throwable) {
+            println("Save error $t")
+        }
+    }
     override fun hook(extensionHook: ExtensionHook): Unit = with(extensionHook) {
         super.hook(this)
 
@@ -100,20 +119,24 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
 
         view?.let {
             SwingUtilities.invokeLater {
+                val nafScanner = NafScanner(nafService, defaultPolicy, coroutineContext)
                 val lifecycle = LifecycleRegistry()
-                val root = RootComponent(
-                    DefaultComponentContext(lifecycle),
-                    this@ExtensionNaf
+                val rootComponent = RootComponent(
+                    componentContext = DefaultComponentContext(lifecycle),
+                    nafScanner = nafScanner,
+                    nafState =  this@ExtensionNaf,
+                    coroutineContext = coroutineContext
                 )
 
                 val composePanel = ComposePanel()
                 composePanel.setContent {
-                    Root(root)
+                    Root(rootComponent)
                 }
 
                 hookView.addWorkPanel(abstractPanel {
                     layout = CardLayout()
-                    name = "Workspace panel"
+                    name = "Nextgen Automation"
+                    icon = ICON
                     add(composePanel)
                 }.apply {
                     tabIndex = 0

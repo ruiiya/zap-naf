@@ -1,6 +1,7 @@
-package org.zaproxy.addon.naf.ui
+package org.zaproxy.addon.naf.ui.home
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,8 @@ import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.jetbrains.Children
 import org.zaproxy.addon.naf.component.HomeComponent
+import org.zaproxy.addon.naf.ui.NafTab
+import org.zaproxy.addon.naf.ui.exploit.Exploit
 
 @OptIn(ExperimentalDecomposeApi::class)
 @Preview
@@ -18,23 +21,28 @@ import org.zaproxy.addon.naf.component.HomeComponent
 fun Home(
     component: HomeComponent
 ) = Children(component.routerState) { router ->
+
     val child = router.instance
+
     Scaffold(
         topBar = {
             NafTopBar(
                 nafTab = child.nafTab,
-                onSelectedTab = {
-                    component.onSelectedTab(it)
-                }
+                onSelectedTab = { component.onSelectedTab(it) }
             )
         },
         modifier = Modifier.padding(5.dp).fillMaxSize()
     ) {
-        Divider()
 
-        when (child) {
-            is HomeComponent.Child.Dashboard -> Dashboard(child.component)
-            is HomeComponent.Child.Project -> Project(child.component, child.onCallWizard)
+        Column {
+            Divider()
+
+            when (child) {
+                is HomeComponent.Child.Dashboard -> Dashboard(child.component)
+                is HomeComponent.Child.Project -> Project(child.component, child.onCallWizard)
+                is HomeComponent.Child.Setting -> Setting(child.componentContext)
+                is HomeComponent.Child.Exploit -> Exploit(child.exploitComponent)
+            }
         }
     }
 }
