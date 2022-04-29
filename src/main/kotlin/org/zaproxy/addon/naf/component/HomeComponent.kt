@@ -1,6 +1,7 @@
 package org.zaproxy.addon.naf.component
 
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateListOf
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.RouterState
 import com.arkivanov.decompose.router.replaceCurrent
@@ -12,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import org.zaproxy.addon.naf.NafScan
 import org.zaproxy.addon.naf.NafService
 import org.zaproxy.addon.naf.NafState
+import org.zaproxy.addon.naf.database.NafDatabase
 import org.zaproxy.addon.naf.model.ExploitEvent
 import org.zaproxy.addon.naf.model.NafEvent
 import org.zaproxy.addon.naf.model.NopEvent
@@ -23,9 +25,12 @@ class HomeComponent(
     val currentScan: State<NafScan?>,
     private val nafState: NafState,
     private val nafService: NafService,
+    private val nafDatabase: NafDatabase,
     private val onCallWizard: () -> Unit,
     override val coroutineContext: CoroutineContext
 ): ComponentContext by componentContext, CoroutineScope {
+
+    private val listExploitTabComponent = mutableStateListOf<ExploitTabComponent>(StartTabComponent())
 
     private val router = router<Config, Child>(
         initialConfiguration = Config.Project,
@@ -41,16 +46,14 @@ class HomeComponent(
             NafTab.PROJECT -> router.replaceCurrent(Config.Project)
             NafTab.SETTING -> router.replaceCurrent(Config.Setting)
             NafTab.EXPLOIT -> router.replaceCurrent(Config.Exploit)
-            else -> {}
+            NafTab.ISSUE -> router.replaceCurrent(Config.Issue)
+            NafTab.REPORT -> router.replaceCurrent(Config.Report)
         }
     }
 
     fun sendEvent(nafEvent: NafEvent) {
         when (nafEvent) {
-            is NopEvent -> {
-                //TODO: Testing purpose only
-                router.replaceCurrent(Config.Exploit)
-            }
+            is NopEvent -> {}
             is ExploitEvent -> {
                 router.replaceCurrent(Config.Exploit)
                 val child = routerState.value.activeChild.instance
@@ -67,7 +70,14 @@ class HomeComponent(
         Config.Dashboard -> Child.Dashboard(DashboardComponent(componentContext, nafState))
         Config.Project -> Child.Project(ProjectComponent(componentContext), onCallWizard)
         Config.Setting -> Child.Setting(SettingComponent(componentContext, nafService))
-        Config.Exploit -> Child.Exploit(ExploitComponent(componentContext, nafService, coroutineContext))
+        Config.Exploit -> Child.Exploit(ExploitComponent(
+            componentContext,
+            nafService,
+            listExploitTabComponent,
+            coroutineContext)
+        )
+        Config.Issue -> Child.Issue(IssueComponent(nafDatabase.issueService, componentContext))
+        Config.Report -> Child.Report(ReportComponent(nafDatabase, componentContext))
     }
 
     sealed class Child(
@@ -82,6 +92,10 @@ class HomeComponent(
         data class Setting(val componentContext: SettingComponent): Child(NafTab.SETTING)
 
         data class Exploit(val exploitComponent: ExploitComponent): Child(NafTab.EXPLOIT)
+
+        data class Issue(val issueComponent: IssueComponent): Child(NafTab.ISSUE)
+
+        data class Report(val reportComponent: ReportComponent): Child(NafTab.REPORT)
     }
 
     sealed class Config: Parcelable {
@@ -93,5 +107,9 @@ class HomeComponent(
         object Setting: Config()
         @Parcelize
         object Exploit: Config()
+        @Parcelize
+        object Issue: Config()
+        @Parcelize
+        object Report: Config()
     }
 }

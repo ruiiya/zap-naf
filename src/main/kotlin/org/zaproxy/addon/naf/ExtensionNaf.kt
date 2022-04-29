@@ -21,6 +21,7 @@ import org.parosproxy.paros.model.HistoryReferenceEventPublisher
 import org.parosproxy.paros.model.SiteMapEventPublisher
 import org.parosproxy.paros.model.SiteNode
 import org.zaproxy.addon.naf.component.RootComponent
+import org.zaproxy.addon.naf.database.NafDatabase
 import org.zaproxy.addon.naf.model.NafAlert
 import org.zaproxy.addon.naf.ui.Root
 import org.zaproxy.zap.ZAP
@@ -31,7 +32,7 @@ import org.zaproxy.zap.extension.ascan.ExtensionActiveScan
 import org.zaproxy.zap.extension.ascan.ScanPolicy
 import org.zaproxy.zap.extension.spider.ExtensionSpider
 import org.zaproxy.zap.extension.spider.SpiderEventPublisher
-import java.awt.CardLayout
+import java.awt.BorderLayout
 import javax.swing.ImageIcon
 import javax.swing.SwingUtilities
 import kotlin.coroutines.CoroutineContext
@@ -63,6 +64,8 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
 
     lateinit var defaultPolicy: ScanPolicy
 
+    lateinit var database: NafDatabase
+
     override val getHistoryReference: (Int) -> HistoryReference = {
         extHistory.getHistoryReference(it)
     }
@@ -76,8 +79,6 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
     private val eventsBus = ZAP.getEventBus()!!
 
     private val eventConsumerImpl = EventConsumerImpl(this)
-
-    private val nafService = NafServiceImpl(coroutineContext)
 
     override fun getDescription(): String = Constant.messages.getString("$PREFIX.desc")
 
@@ -94,7 +95,7 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         extAlert = extensionLoader.getExtension(ExtensionAlert::class.java)
         extSpider = extensionLoader.getExtension(ExtensionSpider::class.java)
 
-        try {
+        kotlin.runCatching {
             val policyManager = extActiveScan.policyManager
 
             defaultPolicy = policyManager
@@ -103,9 +104,13 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
             defaultPolicy.name = "NAF"
 
             policyManager.savePolicy(defaultPolicy)
-        } catch (t: Throwable) {
-            println("Save error $t")
+        }.onFailure {
+            println("Save error $it")
         }
+
+        database = NafDatabase()
+
+        database.connectAndMigrate()
     }
     override fun hook(extensionHook: ExtensionHook): Unit = with(extensionHook) {
         super.hook(this)
@@ -115,16 +120,25 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         addApiImplementor(api)
 
         addProxyListener(ProxyListenerImpl)
+
         addConnectionRequestProxyListener(ProxyListenerImpl)
+        val nafConfig = MutableStateFlow(database.loadConfig())
 
         view?.let {
             SwingUtilities.invokeLater {
+
+                val nafService = NafServiceImpl(nafConfig, coroutineContext) {
+                    database.saveConfig(nafConfig = nafConfig.value)
+                }
+
                 val nafScanner = NafScanner(nafService, defaultPolicy, coroutineContext)
+
                 val lifecycle = LifecycleRegistry()
                 val rootComponent = RootComponent(
                     componentContext = DefaultComponentContext(lifecycle),
                     nafScanner = nafScanner,
                     nafState =  this@ExtensionNaf,
+                    nafDatabase = database,
                     coroutineContext = coroutineContext
                 )
 
@@ -134,7 +148,7 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
                 }
 
                 hookView.addWorkPanel(abstractPanel {
-                    layout = CardLayout()
+                    layout = BorderLayout()
                     name = "Nextgen Automation"
                     icon = ICON
                     add(composePanel)
