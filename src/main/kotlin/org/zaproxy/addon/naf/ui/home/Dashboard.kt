@@ -13,11 +13,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import org.parosproxy.paros.model.HistoryReference
 import org.zaproxy.addon.naf.NafScan
@@ -54,7 +51,9 @@ fun Dashboard(
             DashboardTab.PROCESS -> Processing(component.currentScan)
             DashboardTab.ALERT -> Alert(
                 component.alerts.collectAsState(),
-                component.sendAlert
+                component.addIssue,
+                component.sendToSqlmap,
+                component.sendToCommix
             )
             DashboardTab.CRAWL -> Crawl(component.historyRefSate.collectAsState())
             DashboardTab.SITEMAP -> SiteMap(component.siteNodes.collectAsState())
@@ -106,7 +105,9 @@ fun SiteMap(
 @Composable
 fun Alert(
     alerts: State<List<NafAlert>>,
-    sendAlert: (NafAlert) -> Unit
+    sendAlert: (NafAlert) -> Unit,
+    sendToSqlmap: (NafAlert) -> Unit,
+    sendToCommix: (NafAlert) -> Unit
 ) {
 
     val currentAlert: MutableState<NafAlert?> = remember { mutableStateOf(null) }
@@ -134,7 +135,9 @@ fun Alert(
                 onClickAlert = {
                     currentAlert.value = it
                 },
-                sendAlert
+                sendAlert,
+                sendToSqlmap,
+                sendToCommix
             )
         }
 
@@ -168,7 +171,9 @@ fun Alert(
 fun AlertList(
     alerts: State<List<NafAlert>>,
     onClickAlert: (NafAlert) -> Unit,
-    sendAlert: (NafAlert) -> Unit
+    sendAlert: (NafAlert) -> Unit,
+    sendToSqlmap: (NafAlert) -> Unit,
+    sendToCommix: (NafAlert) -> Unit
 ) {
     val alertsByGroup = derivedStateOf { alerts.value.groupBy { it.name } }
 
@@ -258,6 +263,24 @@ fun AlertList(
                                             }
                                         ) {
                                             Text("Add to Issue")
+                                        }
+
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                expandedMenu.value = false
+                                                sendToSqlmap(it)
+                                            }
+                                        ) {
+                                            Text("Send to SQLMap")
+                                        }
+
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                expandedMenu.value = false
+                                                sendToCommix(it)
+                                            }
+                                        ) {
+                                            Text("Send to Commix")
                                         }
                                     }
                                 }
