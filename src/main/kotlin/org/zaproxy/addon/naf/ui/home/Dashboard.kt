@@ -10,12 +10,14 @@ import androidx.compose.material.MaterialTheme.typography
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.isPrimaryPressed
-import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.mikepenz.markdown.Markdown
 import org.parosproxy.paros.model.HistoryReference
 import org.zaproxy.addon.naf.NafScan
 import org.zaproxy.addon.naf.component.DashboardComponent
@@ -27,19 +29,17 @@ import org.zaproxy.addon.naf.ui.MainColors
 fun Dashboard(
     component: DashboardComponent
 ) {
-
-    val subTab = remember { mutableStateOf(DashboardTab.PROCESS) }
     Scaffold(
         topBar = {
             TabRow(
-                selectedTabIndex = subTab.value.ordinal,
+                selectedTabIndex = component.subTab.value.ordinal,
                 modifier = Modifier.height(30.dp),
                 backgroundColor = MainColors.secondary,
             ) {
                 DashboardTab.values().forEachIndexed { index, tab ->
                     Tab(
-                        selected = subTab.value.ordinal == index,
-                        onClick = { subTab.value = tab },
+                        selected = component.subTab.value.ordinal == index,
+                        onClick = { component.subTab.value = tab },
                     ) {
                         Text(tab.title)
                     }
@@ -47,13 +47,15 @@ fun Dashboard(
             }
         },
     ) {
-        when (subTab.value) {
+        when (component.subTab.value) {
             DashboardTab.PROCESS -> Processing(component.currentScan)
             DashboardTab.ALERT -> Alert(
                 component.alerts.collectAsState(),
                 component.addIssue,
                 component.sendToSqlmap,
-                component.sendToCommix
+                component.sendToCommix,
+                component.sendToRFI,
+                component.sendToLFI
             )
             DashboardTab.CRAWL -> Crawl(component.historyRefSate.collectAsState())
             DashboardTab.SITEMAP -> SiteMap(component.siteNodes.collectAsState())
@@ -107,7 +109,9 @@ fun Alert(
     alerts: State<List<NafAlert>>,
     sendAlert: (NafAlert) -> Unit,
     sendToSqlmap: (NafAlert) -> Unit,
-    sendToCommix: (NafAlert) -> Unit
+    sendToCommix: (NafAlert) -> Unit,
+    sendToRFI: (NafAlert) -> Unit,
+    sendToLFI: (NafAlert) -> Unit
 ) {
 
     val currentAlert: MutableState<NafAlert?> = remember { mutableStateOf(null) }
@@ -137,7 +141,9 @@ fun Alert(
                 },
                 sendAlert,
                 sendToSqlmap,
-                sendToCommix
+                sendToCommix,
+                sendToRFI,
+                sendToLFI
             )
         }
 
@@ -173,7 +179,9 @@ fun AlertList(
     onClickAlert: (NafAlert) -> Unit,
     sendAlert: (NafAlert) -> Unit,
     sendToSqlmap: (NafAlert) -> Unit,
-    sendToCommix: (NafAlert) -> Unit
+    sendToCommix: (NafAlert) -> Unit,
+    sendToRFI: (NafAlert) -> Unit,
+    sendToLFI: (NafAlert) -> Unit
 ) {
     val alertsByGroup = derivedStateOf { alerts.value.groupBy { it.name } }
 
@@ -187,7 +195,9 @@ fun AlertList(
     val stateVertical = rememberScrollState(0)
 
     LazyColumn(
-        modifier = Modifier.horizontalScroll(stateVertical)
+        modifier = Modifier
+            .horizontalScroll(stateVertical)
+            .fillMaxWidth()
     ) {
         alertsByGroup.value.forEach { (name, alerts) ->
 
@@ -229,62 +239,82 @@ fun AlertList(
 
                         Row(
                             modifier = Modifier
-                                .mouseClickable {
-                                    if (buttons.isPrimaryPressed) {
-                                        onClickAlert(it)
-                                    } else if (buttons.isSecondaryPressed) {
+                                .clickable {
+                                    onClickAlert(it)
+                                }
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                IconButton(
+                                    onClick = {
                                         expandedMenu.value = true
                                     }
-                                }
-                        ) {
-                            Text(
-                                text = it.uri,
-                                maxLines = 1,
-                            )
-
-                            Spacer(modifier = Modifier.padding(5.dp))
-
-                            if (expandedMenu.value) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Center
                                 ) {
-                                    DropdownMenu(
-                                        expanded = expandedMenu.value,
-                                        onDismissRequest = {
+                                    Icon(Icons.Default.Send, "More")
+                                }
+
+                                DropdownMenu(
+                                    expanded = expandedMenu.value,
+                                    onDismissRequest = {
+                                        expandedMenu.value = false
+                                    },
+                                ) {
+                                    DropdownMenuItem(
+                                        onClick = {
                                             expandedMenu.value = false
+                                            sendAlert(it)
                                         }
                                     ) {
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                expandedMenu.value = false
-                                                sendAlert(it)
-                                            }
-                                        ) {
-                                            Text("Add to Issue")
-                                        }
+                                        Text("Add to Issue")
+                                    }
 
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                expandedMenu.value = false
-                                                sendToSqlmap(it)
-                                            }
-                                        ) {
-                                            Text("Send to SQLMap")
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            expandedMenu.value = false
+                                            sendToSqlmap(it)
                                         }
+                                    ) {
+                                        Text("Send to SQLMap")
+                                    }
 
-                                        DropdownMenuItem(
-                                            onClick = {
-                                                expandedMenu.value = false
-                                                sendToCommix(it)
-                                            }
-                                        ) {
-                                            Text("Send to Commix")
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            expandedMenu.value = false
+                                            sendToCommix(it)
                                         }
+                                    ) {
+                                        Text("Send to Commix")
+                                    }
+
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            expandedMenu.value = false
+                                            sendToLFI(it)
+                                        }
+                                    ) {
+                                        Text("Send to LFI exploiter")
+                                    }
+
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            expandedMenu.value = false
+                                            sendToRFI(it)
+                                        }
+                                    ) {
+                                        Text("Send to RFI Exploiter")
                                     }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(5.dp))
+
+                            Text(
+                                text = it.uri,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
 
                         Divider()
@@ -367,7 +397,8 @@ fun AlertField(
     ) {
         Text(
             text = title,
-            style = typography.subtitle2
+            style = typography.subtitle1,
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(Modifier.padding(5.dp, 0.dp, 20.dp, 0.dp))
@@ -390,16 +421,13 @@ fun AlertTextField(
     ) {
         Text(
             text = title,
-            style = typography.subtitle2
+            style = typography.subtitle1,
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(Modifier.padding(5.dp, 0.dp, 20.dp, 0.dp))
 
-        OutlinedTextField(
-            value = text,
-            onValueChange = {},
-            readOnly = true
-        )
+        Markdown(content = text)
     }
 }
 @Composable
