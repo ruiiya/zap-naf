@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.MaterialTheme.typography
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +54,7 @@ fun Dashboard(
             DashboardTab.ALERT -> Alert(
                 component.alerts.collectAsState(),
                 component.addIssue,
+                component::removeAlert,
                 component.sendToSqlmap,
                 component.sendToCommix,
                 component.sendToRFI,
@@ -109,6 +111,7 @@ fun SiteMap(
 fun Alert(
     alerts: State<List<NafAlert>>,
     sendAlert: (NafAlert) -> Unit,
+    removeAlert: (NafAlert) -> Unit,
     sendToSqlmap: (NafAlert) -> Unit,
     sendToCommix: (NafAlert) -> Unit,
     sendToRFI: (NafAlert) -> Unit,
@@ -140,6 +143,7 @@ fun Alert(
                 onClickAlert = {
                     currentAlert.value = it
                 },
+                removeAlert = removeAlert,
                 sendAlert,
                 sendToSqlmap,
                 sendToCommix,
@@ -177,6 +181,7 @@ fun Alert(
 fun AlertList(
     alerts: State<List<NafAlert>>,
     onClickAlert: (NafAlert) -> Unit,
+    removeAlert: (NafAlert) -> Unit,
     sendAlert: (NafAlert) -> Unit,
     sendToSqlmap: (NafAlert) -> Unit,
     sendToCommix: (NafAlert) -> Unit,
@@ -189,10 +194,9 @@ fun AlertList(
     LazyColumn(
         modifier = Modifier
             .horizontalScroll(stateVertical)
-            .fillMaxWidth(),
-        reverseLayout = true
+            .fillMaxWidth()
     ) {
-        items(alerts.value.sortedWith(compareBy(NafAlert::risk, NafAlert::name))) {
+        items(alerts.value.sortedWith(compareBy(NafAlert::risk, NafAlert::name).reversed())) {
 
             val expandedMenu = remember { mutableStateOf(false) }
 
@@ -269,11 +273,21 @@ fun AlertList(
 
                 Spacer(modifier = Modifier.width(5.dp))
 
+                IconButton(
+                    onClick = {
+                        removeAlert(it)
+                    }
+                ) {
+                    Icon(Icons.Default.Delete, "Remove")
+                }
+
                 Column {
                     Text(
                         text = it.name,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        style = typography.subtitle1,
+                        fontWeight = FontWeight.Bold
                     )
 
                     Spacer(modifier = Modifier.width(5.dp))

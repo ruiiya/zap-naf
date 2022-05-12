@@ -10,4 +10,6 @@ interface NafState {
     val historyRefSate: MutableStateFlow<List<HistoryReference>>
     val siteNodes: MutableStateFlow<List<NafNode>>
     val alerts: MutableStateFlow<List<NafAlert>>
+
+    fun removeAlert(nafAlert: NafAlert)
 }

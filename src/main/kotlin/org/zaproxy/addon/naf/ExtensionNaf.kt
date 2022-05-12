@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import me.d3s34.lib.dsl.abstractPanel
 import org.apache.logging.log4j.LogManager
 import org.parosproxy.paros.Constant
@@ -75,6 +76,19 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
     override val historyRefSate: MutableStateFlow<List<HistoryReference>> = MutableStateFlow(emptyList())
 
     override val siteNodes: MutableStateFlow<List<NafNode>> = MutableStateFlow(emptyList())
+
+    override fun removeAlert(nafAlert: NafAlert) {
+        alerts.update {
+            it.filter { it.id != nafAlert.id }
+        }
+
+        extAlert
+            .allAlerts
+            .firstOrNull { it.alertId.toString() == nafAlert.id }
+            ?.let {
+                extAlert.deleteAlert(it)
+            }
+    }
 
     private val eventsBus = ZAP.getEventBus()!!
 
