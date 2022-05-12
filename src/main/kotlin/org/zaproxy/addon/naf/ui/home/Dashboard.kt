@@ -1,15 +1,16 @@
 package org.zaproxy.addon.naf.ui.home
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.MaterialTheme.typography
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -172,7 +173,6 @@ fun Alert(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlertList(
     alerts: State<List<NafAlert>>,
@@ -183,144 +183,109 @@ fun AlertList(
     sendToRFI: (NafAlert) -> Unit,
     sendToLFI: (NafAlert) -> Unit
 ) {
-    val alertsByGroup = derivedStateOf { alerts.value.groupBy { it.name } }
-
-    val collapsedState = alertsByGroup
-        .value
-        .keys
-        .associateWith { true }
-        .toList()
-        .toMutableStateMap()
 
     val stateVertical = rememberScrollState(0)
 
     LazyColumn(
         modifier = Modifier
             .horizontalScroll(stateVertical)
-            .fillMaxWidth()
+            .fillMaxWidth(),
+        reverseLayout = true
     ) {
-        alertsByGroup.value.forEach { (name, alerts) ->
+        items(alerts.value.sortedWith(compareBy(NafAlert::risk, NafAlert::name))) {
 
-            val collapsed = collapsedState[name]
+            val expandedMenu = remember { mutableStateOf(false) }
 
-            collapsed?.let {
-                item(key = name) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                collapsedState[name] = !collapsed
-                            }
+            Row(
+                modifier = Modifier
+                    .clickable {
+                        onClickAlert(it)
+                    }
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    IconButton(
+                        onClick = {
+                            expandedMenu.value = true
+                        }
                     ) {
-                        Icon(
-                            Icons.Default.run {
-                                if (collapsed) {
-                                    KeyboardArrowDown
-                                } else {
-                                    KeyboardArrowUp
-                                }
-                            },
-                            contentDescription = "Expand alerts group"
-                        )
-                        Text(
-                            text = name,
-                            style = typography.subtitle1
-                        )
+                        Icon(Icons.Default.Send, "More")
                     }
 
-                    Divider()
-                }
-
-                if (!collapsed) {
-                    items(alerts) {
-
-                        val expandedMenu = remember { mutableStateOf(false) }
-
-                        Row(
-                            modifier = Modifier
-                                .clickable {
-                                    onClickAlert(it)
-                                }
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                IconButton(
-                                    onClick = {
-                                        expandedMenu.value = true
-                                    }
-                                ) {
-                                    Icon(Icons.Default.Send, "More")
-                                }
-
-                                DropdownMenu(
-                                    expanded = expandedMenu.value,
-                                    onDismissRequest = {
-                                        expandedMenu.value = false
-                                    },
-                                ) {
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            expandedMenu.value = false
-                                            sendAlert(it)
-                                        }
-                                    ) {
-                                        Text("Add to Issue")
-                                    }
-
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            expandedMenu.value = false
-                                            sendToSqlmap(it)
-                                        }
-                                    ) {
-                                        Text("Send to SQLMap")
-                                    }
-
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            expandedMenu.value = false
-                                            sendToCommix(it)
-                                        }
-                                    ) {
-                                        Text("Send to Commix")
-                                    }
-
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            expandedMenu.value = false
-                                            sendToLFI(it)
-                                        }
-                                    ) {
-                                        Text("Send to LFI exploiter")
-                                    }
-
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            expandedMenu.value = false
-                                            sendToRFI(it)
-                                        }
-                                    ) {
-                                        Text("Send to RFI Exploiter")
-                                    }
-                                }
+                    DropdownMenu(
+                        expanded = expandedMenu.value,
+                        onDismissRequest = {
+                            expandedMenu.value = false
+                        },
+                    ) {
+                        DropdownMenuItem(
+                            onClick = {
+                                expandedMenu.value = false
+                                sendAlert(it)
                             }
-
-                            Spacer(modifier = Modifier.width(5.dp))
-
-                            Text(
-                                text = it.uri,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                        ) {
+                            Text("Add to Issue")
                         }
 
-                        Divider()
+                        DropdownMenuItem(
+                            onClick = {
+                                expandedMenu.value = false
+                                sendToSqlmap(it)
+                            }
+                        ) {
+                            Text("Send to SQLMap")
+                        }
+
+                        DropdownMenuItem(
+                            onClick = {
+                                expandedMenu.value = false
+                                sendToCommix(it)
+                            }
+                        ) {
+                            Text("Send to Commix")
+                        }
+
+                        DropdownMenuItem(
+                            onClick = {
+                                expandedMenu.value = false
+                                sendToLFI(it)
+                            }
+                        ) {
+                            Text("Send to LFI exploiter")
+                        }
+
+                        DropdownMenuItem(
+                            onClick = {
+                                expandedMenu.value = false
+                                sendToRFI(it)
+                            }
+                        ) {
+                            Text("Send to RFI Exploiter")
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.width(5.dp))
+
+                Column {
+                    Text(
+                        text = it.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Spacer(modifier = Modifier.width(5.dp))
+
+                    Text(
+                        text = it.uri,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
+            Divider()
         }
     }
 }
