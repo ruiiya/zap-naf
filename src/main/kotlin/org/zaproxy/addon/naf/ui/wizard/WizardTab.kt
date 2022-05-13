@@ -12,5 +12,5 @@ enum class WizardTab(
     SCAN("Scan"),
     COMPONENT("Component Scan"),
     AUTH("Authentication"),
-    SCRIPT("Script")
+//    SCRIPT("Script")
 }

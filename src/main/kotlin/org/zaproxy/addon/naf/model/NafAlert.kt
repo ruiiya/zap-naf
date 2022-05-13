@@ -16,6 +16,7 @@ data class NafAlert(
     val description: String,
     val solution: String,
     val otherInfo: String,
+    val verified: Boolean = false
 )
 
 fun Alert.toNafAlert(): NafAlert {

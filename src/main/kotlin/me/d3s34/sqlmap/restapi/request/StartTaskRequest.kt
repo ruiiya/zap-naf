@@ -37,7 +37,7 @@ data class StartTaskRequest(
     //Exec query
     val sqlQuery: String? = null,
     //Sqlmap option
-    val purge: Boolean = false,
+    val purge: Boolean = true,
     val updateAll: Boolean = false
 ) {
     init {
