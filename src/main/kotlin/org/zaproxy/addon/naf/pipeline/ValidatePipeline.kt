@@ -1,6 +1,7 @@
 package org.zaproxy.addon.naf.pipeline
 
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import me.d3s34.commix.CommixValidateRequest
 import me.d3s34.rfi.RfiExploiter
 import me.d3s34.sqlmap.restapi.request.StartTaskRequest
@@ -39,62 +40,45 @@ class ValidatePipeline(
         val alerts = extensionAlert.allAlerts
         val nafAlerts = nafState.alerts.value
 
-        alerts.forEach {alert ->
-            kotlin.runCatching {
+        alerts.forEach { alert ->
+            kotlin.runCatching<Unit> {
                 val historyReference = alert.historyRef
-
-                when (alert.cweId) {
+                val isValid: Boolean = when (alert.cweId) {
                     89 -> {
                         val sqlmapEngine = nafService.sqlmapEngine
-                        val isValid = sqlmapEngine?.verifySqlInjection(
+                        sqlmapEngine?.verifySqlInjection(
                             StartTaskRequest(
                                 url = alert.uri.toString(),
                                 data = alert.postData,
                                 cookie = historyReference.httpMessage.cookieParamsAsString,
                             ).transformParam(alert.param)
                         ) ?: false
-
-                        if (isValid) {
-                            nafDatabase
-                                .issueService
-                                .saveNewIssue(alert.toNafAlert().mapToIssue())
-                        }
                     }
                     94, 78, 97 -> {
                         val commixEngine = nafService.commixDockerEngine
 
-                        val isCommixExploitable = commixEngine?.validate(CommixValidateRequest(
+                        val commInjectable = commixEngine?.validate(CommixValidateRequest(
                             url = alert.uri.toString(),
                             data = alert.postData,
                             cookies = historyReference.httpMessage.cookieParamsAsString
                         )) ?: false
 
-                        if (isCommixExploitable) {
-                            nafDatabase
-                                .issueService
-                                .saveNewIssue(alert.toNafAlert().mapToIssue())
-                            return@forEach
-                        }
 
-                        val tplmapDockerEngine = nafService.tplmapDockerEngine
-                        val isTplmapExploitable = tplmapDockerEngine?.validate(
-                            TplmapRequest(
-                                url = alert.uri.toString(),
-                                data = alert.postData,
-                                cookies = historyReference.httpMessage.cookieParamsAsString
-                            )
-                        ) ?: false
-
-
-                        if (isTplmapExploitable) {
-                            nafDatabase
-                                .issueService
-                                .saveNewIssue(alert.toNafAlert().mapToIssue())
-                            return@forEach
+                        if (commInjectable) {
+                            true
+                        } else {
+                            val tplmapDockerEngine = nafService.tplmapDockerEngine
+                            tplmapDockerEngine?.validate(
+                                TplmapRequest(
+                                    url = alert.uri.toString(),
+                                    data = alert.postData,
+                                    cookies = historyReference.httpMessage.cookieParamsAsString
+                                )
+                            ) ?: false
                         }
                     }
                     98 -> {
-                        val isValid = rfiExploiter.validate(
+                        rfiExploiter.validate(
                             RfiRequest(
                                 URL(historyReference.uri.toString()),
                                 alert.param,
@@ -103,43 +87,45 @@ class ValidatePipeline(
                                 remoteFileInclude = RfiExploiter.nessusRfiCheck
                             )
                         )
-
-                        if (isValid) {
-
-                            val nafAlert = nafAlerts.firstOrNull { it.id == alert.alertId.toString() }
-
-                            if (nafAlert != null) {
-                                nafDatabase
-                                    .issueService
-                                    .saveNewIssue(nafAlert.mapToIssue())
-                            } else {
-
-                                val newNafAlert = alert.toNafAlert()
-
-                                nafState.alerts.update {
-                                    it + newNafAlert
-                                }
-
-                                nafDatabase
-                                    .issueService
-                                    .saveNewIssue(newNafAlert.mapToIssue())
-                            }
-                        }
                     }
                     22 -> {
                         // Path traversal, LFI
                         // No need validate
-                        val nafAlert = nafAlerts.firstOrNull { it.id == alert.alertId.toString() }
-                        if (nafAlert != null) {
-                            nafDatabase
-                                .issueService
-                                .saveNewIssue(nafAlert.mapToIssue())
-                        }
+
+                        val vectorAttack = alert.attack
+
+                        vectorAttack.contains("etc") && vectorAttack.contains("passwd") ||
+                                vectorAttack.contains("Windows", true) && vectorAttack.contains("system.ini")
                     }
-                    else -> {}
+                    else -> false
+                }
+
+
+
+                if (isValid) {
+                    val nafAlert = nafState.alerts.updateAndGet { nafAlerts ->
+                        nafAlerts.map { if (it.id == alert.alertId.toString()) it.copy(verified = true) else it }
+                    }.firstOrNull { it.id == alert.alertId.toString() }
+
+                    if (nafAlert != null) {
+                        nafDatabase
+                            .issueService
+                            .saveNewIssue(nafAlert.mapToIssue().copy())
+                    } else {
+
+                        val newNafAlert = alert.toNafAlert().copy(verified = true)
+
+                        nafState.alerts.update {
+                            it + newNafAlert
+                        }
+
+                        nafDatabase
+                            .issueService
+                            .saveNewIssue(newNafAlert.mapToIssue())
+                    }
                 }
             }.onFailure {
-                println(it.message)
+                println(it.stackTrace.toString())
             }
         }
     }

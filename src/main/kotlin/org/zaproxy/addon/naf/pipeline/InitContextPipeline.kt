@@ -66,7 +66,7 @@ class InitContextPipeline(
                     val formBasedMethod = formBasedMethodType
                         .createAuthenticationMethod(context.id)
 
-                    val loginSiteNode = getLoginNode(method.loginUrl)
+                    val loginSiteNode = getLoginNode(method.loginUrl, method.loginPage)
 
                     loginSiteNode.let { it ->
                         val body = it.historyReference
@@ -173,8 +173,8 @@ class InitContextPipeline(
             HttpSender.MANUAL_REQUEST_INITIATOR
         )
     }
-    private suspend fun getLoginNode(url: String): SiteNode {
-        val msg = HttpMessage(URI(url, true))
+    private suspend fun getLoginNode(loginUrl: String, loginPage: String): SiteNode {
+        val msg = HttpMessage(URI(loginPage, true))
         httpSender.sendAndReceive(msg, true)
         extensionHistory.addHistory(msg, HistoryReference.TYPE_PROXIED)
 
@@ -185,18 +185,18 @@ class InitContextPipeline(
         }
 
 
-        val uri = URI(url, false)
+        val loginPageUri = URI(loginPage, false)
 
         var target: org.zaproxy.zap.model.Target? = null
 
-        for (index in 0..10) {
-            val siteNode = model.session.siteTree.findNode(uri)
+        for (index in 0..20) {
+            val siteNode = model.session.siteTree.findNode(loginPageUri)
 
             if (siteNode != null) {
                 target = org.zaproxy.zap.model.Target(siteNode, true)
                 break
             }
-            delay(200L)
+            delay(500L)
         }
 
         if (target != null) {
@@ -211,27 +211,26 @@ class InitContextPipeline(
         }
 
 
-        for (index in 0..10) {
+        val loginUri = URI(loginUrl, false)
 
-            val parent = this.model
+        for (index in 0..20) {
+            val loginSiteNode = model
                 .session
                 .siteTree
-                .findClosestParent(uri)
-
-            val loginSiteNode = parent
+                .findClosestParent(loginUri)
                 .children()
                 .toList()
                 .map { it as SiteNode }
-                .firstOrNull { it.historyReference.uri == uri && it.historyReference.method == "POST" }
+                .firstOrNull { it.historyReference.uri == loginUri && it.historyReference.method == "POST" }
 
             if (loginSiteNode != null) {
                 return loginSiteNode
             }
 
-            delay(200L)
+            delay(500L)
         }
 
-        return model.session.siteTree.findNode(uri)
+        return model.session.siteTree.findNode(loginUri)
     }
 }
 

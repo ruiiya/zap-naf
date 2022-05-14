@@ -134,9 +134,9 @@ fun StartTaskRequest.transformParam(param: String): StartTaskRequest {
     val attackParameters = attackQuery?.let { parametersOf(it) } ?: Parameters.Empty
 
     val attackUrl = URLBuilder(
-        protocol = URLProtocol(url.protocol, url.port),
-        host = "${url.host}:${url.port}",
-        port = url.port,
+        protocol = URLProtocol(url.protocol, if (url.port == -1) 80 else url.port),
+        host = "${url.host}:${if (url.port == -1) 80 else url.port}",
+        port = if (url.port == -1) 80 else url.port,
         pathSegments = url.path.split("/"),
         parameters = attackParameters
     ).build()

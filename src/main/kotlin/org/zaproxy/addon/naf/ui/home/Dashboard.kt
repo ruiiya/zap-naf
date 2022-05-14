@@ -8,11 +8,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.MaterialTheme.typography
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -198,7 +200,7 @@ fun AlertList(
                 .fillMaxSize()
         ) {
             Column {
-                alerts.value.sortedWith(compareBy(NafAlert::risk, NafAlert::name).reversed()).forEach {
+                alerts.value.sortedWith(compareBy(NafAlert::verified ,NafAlert::risk, NafAlert::name).reversed()).forEach {
                     val expandedMenu = remember { mutableStateOf(false) }
 
                     Row(
@@ -281,6 +283,24 @@ fun AlertList(
                         ) {
                             Icon(Icons.Default.Delete, "Remove")
                         }
+
+                        Spacer(modifier = Modifier.width(5.dp))
+
+                        IconButton(
+                            onClick = {}
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                "Checked",
+                                tint = if (it.verified) {
+                                    Color.Green
+                                } else {
+                                    Color.LightGray
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(5.dp))
 
                         Column {
                             Text(
