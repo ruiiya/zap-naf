@@ -55,17 +55,27 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         .getSingleton()
         .extensionLoader
 
-    lateinit var extHistory: ExtensionHistory
+    val extHistory: ExtensionHistory by lazy {
+        extensionLoader.getExtension(ExtensionHistory::class.java)
+    }
 
-    lateinit var extActiveScan: ExtensionActiveScan
+    val extActiveScan: ExtensionActiveScan by lazy {
+        extensionLoader.getExtension(ExtensionActiveScan::class.java)
+    }
 
-    lateinit var extAlert: ExtensionAlert
+    val extAlert: ExtensionAlert by lazy {
+        extensionLoader.getExtension(ExtensionAlert::class.java)
+    }
 
-    lateinit var extSpider: ExtensionSpider
+    val extSpider: ExtensionSpider by lazy {
+        extensionLoader.getExtension(ExtensionSpider::class.java)
+    }
 
     lateinit var defaultPolicy: ScanPolicy
 
-    lateinit var database: NafDatabase
+    val database: NafDatabase by lazy {
+        NafDatabase()
+    }
 
     override val getHistoryReference: (Int) -> HistoryReference = {
         extHistory.getHistoryReference(it)
@@ -97,6 +107,7 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
     override fun getDescription(): String = Constant.messages.getString("$PREFIX.desc")
 
     override fun init() {
+
         // Listen info via Event Bus
         eventsBus.registerConsumer(eventConsumerImpl, AlertEventPublisher.getPublisher().publisherName)
         eventsBus.registerConsumer(eventConsumerImpl, HistoryReferenceEventPublisher.getPublisher().publisherName)
@@ -104,10 +115,7 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         eventsBus.registerConsumer(eventConsumerImpl, SpiderEventPublisher.getPublisher().publisherName)
         eventsBus.registerConsumer(eventConsumerImpl, ActiveScanEventPublisher.getPublisher().publisherName)
 
-        extHistory = extensionLoader.getExtension(ExtensionHistory::class.java)
-        extActiveScan = extensionLoader.getExtension(ExtensionActiveScan::class.java)
-        extAlert = extensionLoader.getExtension(ExtensionAlert::class.java)
-        extSpider = extensionLoader.getExtension(ExtensionSpider::class.java)
+        database.connectAndMigrate()
 
         kotlin.runCatching {
             val policyManager = extActiveScan.policyManager
@@ -121,12 +129,11 @@ class ExtensionNaf: ExtensionAdaptor(NAME), CoroutineScope, NafState {
         }.onFailure {
             println("Save error $it")
         }
-
-        database = NafDatabase()
-
-        database.connectAndMigrate()
     }
     override fun hook(extensionHook: ExtensionHook): Unit = with(extensionHook) {
+
+        println("hook api")
+
         super.hook(this)
 
         // Hook API
