@@ -12,6 +12,7 @@ fun ConfigTable.insert(nafConfig: NafConfig) = kotlin.run {
 
         it[sqlmapEngineType] = nafConfig.sqlmapEngineType.name
         it[sqlmapApiUrl] = nafConfig.sqlmapApiUrl
+        it[sqlmapCSVLocation] = nafConfig.sqlmapCSVLocation
 
 //        it[commixEngineType] = nafConfig.commixEngineType.name
 //        it[tplmapEngineType] = nafConfig.tplmapEngineType.name
@@ -26,6 +27,8 @@ fun ConfigTable.update(nafConfig: NafConfig) = kotlin.run {
         it[sqlmapEngineType] = nafConfig.sqlmapEngineType.name
         it[sqlmapApiUrl] = nafConfig.sqlmapApiUrl ?: ""
 
+        it[sqlmapCSVLocation] = nafConfig.sqlmapCSVLocation ?: ""
+
 //        it[commixEngineType] = nafConfig.commixEngineType.name
 //        it[tplmapEngineType] = nafConfig.tplmapEngineType.name
     }
@@ -37,7 +40,9 @@ fun ResultRow.toNafConfig() = NafConfig(
 
     sqlmapEngineType = SqlmapEngineType.valueOf(this[ConfigTable.sqlmapEngineType]),
     sqlmapApiUrl = this[ConfigTable.sqlmapApiUrl],
+    sqlmapCSVLocation = this[ConfigTable.sqlmapCSVLocation],
 
     commixEngineType = CommixEngineType.DOCKER,
-    tplmapEngineType = TplmapEngineType.DOCKER
+    tplmapEngineType = TplmapEngineType.DOCKER,
+    metasploitEngineType = MetasploitEngineType.DOCKER,
 )

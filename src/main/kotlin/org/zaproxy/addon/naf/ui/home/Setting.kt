@@ -82,6 +82,10 @@ fun Setting(
                     configState,
                     settingComponent::createTplmapImage
                 )
+                SettingTab.METASPLOIT -> MetasploitSetting(
+                    configState,
+                    settingComponent::createMetasploitImage
+                )
             }
         }
     }
@@ -200,6 +204,21 @@ fun SqlmapSetting(
             }
             SqlmapEngineType.NONE -> {}
         }
+
+        OutlinedTextField(
+            value = nafConfig.value.sqlmapCSVLocation ?: "",
+            onValueChange = {
+                nafConfig.value = nafConfig.value.copy(sqlmapCSVLocation = it)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = {
+                Text(
+                    text = "Path",
+                    style = typography.subtitle2,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        )
     }
 }
 
@@ -334,6 +353,21 @@ fun CommixSetting(
         }
     }
 
+    // OutlinedTextField(
+    //     value = nafConfig.value.commixLogLocation ?: "",
+    //     onValueChange = {
+    //         nafConfig.value = nafConfig.value.copy(commixLogLocation = it)
+    //     },
+    //     modifier = Modifier.fillMaxWidth(),
+    //     label = {
+    //         Text(
+    //             text = "Path",
+    //             style = typography.subtitle2,
+    //             fontWeight = FontWeight.Bold
+    //         )
+    //     }
+    // )
+
     when (nafConfig.value.commixEngineType) {
         CommixEngineType.NONE -> {
 
@@ -389,6 +423,21 @@ fun TplmapSetting(
         }
     }
 
+    // OutlinedTextField(
+    //     value = nafConfig.value.tplmapLogLocation ?: "",
+    //     onValueChange = {
+    //         nafConfig.value = nafConfig.value.copy(tplmapLogLocation = it)
+    //     },
+    //     modifier = Modifier.fillMaxWidth(),
+    //     label = {
+    //         Text(
+    //             text = "Path",
+    //             style = typography.subtitle2,
+    //             fontWeight = FontWeight.Bold
+    //         )
+    //     }
+    // )
+
     when (nafConfig.value.tplmapEngineType) {
         TplmapEngineType.NONE -> {
 
@@ -399,6 +448,61 @@ fun TplmapSetting(
                 onClick = createImage
             ) {
                 Text("Create tpl setting")
+            }
+        }
+    }
+}
+
+
+@Composable
+fun MetasploitSetting(
+    nafConfig: MutableState<NafConfig>,
+    createImage: () -> Unit
+) {
+
+    Row(
+        modifier = Modifier.padding(10.dp)
+    ) {
+        Text(
+            text = "Engine",
+            style = typography.subtitle2,
+            fontWeight = FontWeight.Bold
+        )
+    }
+
+    Spacer(Modifier.padding(10.dp))
+
+    Row(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        MetasploitEngineType.values().forEach { engineType ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = nafConfig.value.metasploitEngineType == engineType,
+                    onClick = {
+                        nafConfig.value = nafConfig.value.copy(metasploitEngineType = engineType)
+                    },
+                    colors = RadioButtonDefaults.colors()
+                )
+                Text(
+                    text = engineType.name
+                )
+            }
+        }
+    }
+
+    when (nafConfig.value.metasploitEngineType) {
+        MetasploitEngineType.NONE -> {
+
+        }
+
+        MetasploitEngineType.DOCKER -> {
+            Button(
+                onClick = createImage
+            ) {
+                Text("Create metasploit setting")
             }
         }
     }

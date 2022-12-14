@@ -5,6 +5,7 @@ import me.d3s34.commix.CommixDockerEngine
 import me.d3s34.nuclei.NucleiEngine
 import me.d3s34.sqlmap.SqlmapApiEngine
 import me.d3s34.tplmap.TplmapDockerEngine
+import me.d3s34.metasploit.MetasploitDockerEngine
 import org.zaproxy.addon.naf.model.NafConfig
 
 interface NafService {
@@ -16,10 +17,13 @@ interface NafService {
 
     val sqlmapEngine: SqlmapApiEngine?
     val sqlmapUrl: String
+    val sqlmapCSVLocation: String
 
     val commixDockerEngine: CommixDockerEngine?
 
     val tplmapDockerEngine: TplmapDockerEngine?
+
+    val metasploitDockerEngine: MetasploitDockerEngine?
 
     val saveConfig: () -> Unit
 }

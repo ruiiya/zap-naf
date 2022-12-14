@@ -47,4 +47,10 @@ class SettingComponent(
             dockerManager.createTplmapImage()
         }
     }
+
+    fun createMetasploitImage() {
+        scope.launch {
+            dockerManager.createMetasploitImage()
+        }
+    }
 }

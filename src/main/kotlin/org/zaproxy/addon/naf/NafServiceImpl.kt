@@ -6,6 +6,7 @@ import me.d3s34.nuclei.NucleiEngine
 import me.d3s34.nuclei.NucleiNativeEngine
 import me.d3s34.sqlmap.SqlmapApiEngine
 import me.d3s34.tplmap.TplmapDockerEngine
+import me.d3s34.metasploit.MetasploitDockerEngine
 import org.zaproxy.addon.naf.model.*
 import kotlin.coroutines.CoroutineContext
 
@@ -42,16 +43,24 @@ class NafServiceImpl(
             }
             else -> null
         }
+    override val sqlmapCSVLocation: String
+        get() = nafConfig.value.sqlmapCSVLocation ?: "${home}/zap-naf/sqlmap/"
 
     override val commixDockerEngine: CommixDockerEngine?
         get() = when (nafConfig.value.commixEngineType) {
             CommixEngineType.DOCKER -> CommixDockerEngine(coroutineContext)
             else -> null
         }
-
+    
     override val tplmapDockerEngine: TplmapDockerEngine?
         get() = when (nafConfig.value.tplmapEngineType) {
             TplmapEngineType.DOCKER -> TplmapDockerEngine(coroutineContext)
+            else -> null
+        }
+    
+    override val metasploitDockerEngine: MetasploitDockerEngine?
+        get() = when (nafConfig.value.metasploitEngineType) {
+            MetasploitEngineType.DOCKER -> MetasploitDockerEngine(coroutineContext)
             else -> null
         }
 }

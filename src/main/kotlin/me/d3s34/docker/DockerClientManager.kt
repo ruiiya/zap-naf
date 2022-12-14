@@ -10,6 +10,8 @@ import me.d3s34.commix.CommixValidateRequest
 import me.d3s34.commix.toCommand
 import me.d3s34.tplmap.TplmapRequest
 import me.d3s34.tplmap.toCommand
+import me.d3s34.metasploit.MetasploitRequest
+import me.d3s34.metasploit.toCommand
 import org.parosproxy.paros.Constant
 import java.io.File
 import java.nio.charset.Charset
@@ -102,6 +104,17 @@ class DockerClientManager() {
         return image.awaitImageId()
     }
 
+    fun createMetasploitImage(): String? {
+        val image = dockerClient
+            .buildImageCmd()
+            .withDockerfile(File(Constant.getZapHome(), METASPLOIT_DOCKER_URI))
+            .withPull(true)
+            .withTags(setOf(METASPLOIT_IMAGE_TAG))
+            .start()
+
+        return image.awaitImageId()
+    }
+
     fun getContainerLog(containerId: String): String {
         val result = StringBuilder()
 
@@ -132,6 +145,27 @@ class DockerClientManager() {
         @Suppress("Deprecation")
         return dockerClient
             .createContainerCmd(COMMIX_IMAGE_TAG)
+            .withNetworkMode("host")
+            .withCmd(commandline)
+            .withAttachStdin(true)
+            .withAttachStdout(true)
+            .withAttachStderr(true)
+            .withTty(true)
+            .withStdinOpen(true)
+            .exec()
+            .id
+    }
+
+        fun createMetasploitContainer(metasploitRequest: MetasploitRequest): String? {
+        val commandline = buildList {
+            val command =  metasploitRequest.toCommand()
+            add(command.path)
+            addAll(command.escapedArgs)
+        }
+
+        @Suppress("Deprecation")
+        return dockerClient
+            .createContainerCmd(METASPLOIT_IMAGE_TAG)
             .withNetworkMode("host")
             .withCmd(commandline)
             .withAttachStdin(true)
@@ -215,5 +249,8 @@ class DockerClientManager() {
 
         const val TPLMAP_DOCKER_URI = "me/d3s34/tplmap/Dockerfile"
         const val TPLMAP_IMAGE_TAG = "biennd279/naf-tplmap"
+
+        const val METASPLOIT_DOCKER_URI = "me/d3s34/metasploit/Dockerfile"
+        const val METASPLOIT_IMAGE_TAG = "biennd279/naf-metasploit"
     }
 }

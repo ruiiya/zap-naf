@@ -8,6 +8,7 @@ object ConfigTable: Table("config") {
 
     val sqlmapEngineType = varchar("sqlmap_engine_type", 50)
     val sqlmapApiUrl = varchar("sqlmap_api_url", 250).nullable()
+    val sqlmapCSVLocation = varchar("sqlmap_csv_lct", 250).nullable()
 
 //    val commixEngineType = varchar("commix_engine_type", 50)
 //    val tplmapEngineType = varchar("tplmap_engine_type", 50)
